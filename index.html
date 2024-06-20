@@ -33,10 +33,10 @@
 
     textarea {
       width: 100%;
-      height: calc(100% - 100px); /* Adjusted height to accommodate buttons and dropdowns */
+      height: calc(100% - 100px);
       border: 1px solid #ccc;
       border-radius: 5px;
-      resize: both; /* Added for resizable feature */
+      resize: both;
       outline: none;
       padding: 10px;
       font-family: 'Courier New', Courier, monospace;
@@ -84,7 +84,6 @@
       color: #fff;
     }
 
-    /* Word count, font style, and font size styles */
     .controls {
       display: flex;
       align-items: center;
@@ -113,21 +112,21 @@
   <div class="notepad" id="notepad">
     <textarea id="editor" placeholder="Start typing..." style="font-family: 'Courier New', Courier, monospace; font-size: 16px;"></textarea>
     <div class="controls">
-        <span id="wordCount">Word count: 0</span>
-        <span>Font Style:</span>
-        <select id="fontStyle" onchange="changeFontStyle()">
-          <option value="Arial">Arial</option>
-          <option value="Times New Roman">Times New Roman</option>
-          <option value="Courier New">Courier New</option>
-          <option value="Verdana">Verdana</option>
-        </select>
-        <span>Font Size:</span>
-        <select id="fontSize" onchange="changeFontSize()">
-          <option value="12">12px</option>
-          <option value="14">14px</option>
-          <option value="16">16px</option>
-          <option value="18">18px</option>
-        </select>
+      <span id="wordCount">Word count: 0</span>
+      <span>Font Style:</span>
+      <select id="fontStyle" onchange="changeFontStyle()">
+        <option value="Arial">Arial</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Courier New">Courier New</option>
+        <option value="Verdana">Verdana</option>
+      </select>
+      <span>Font Size:</span>
+      <select id="fontSize" onchange="changeFontSize()">
+        <option value="12">12px</option>
+        <option value="14">14px</option>
+        <option value="16">16px</option>
+        <option value="18">18px</option>
+      </select>
     </div>
     <br>
     <button onclick="saveAsPDF()">Save as PDF</button>
@@ -140,64 +139,79 @@
     let content = document.getElementById('editor');
     let wordCountElement = document.getElementById('wordCount');
     let darkMode = false;
-  
+
     async function saveAsPDF() {
       const textContent = content.value.trim();
       if (!textContent) {
         alert('No content to save.');
         return;
       }
-  
-      // Create a new PDF document
+
       const pdfDoc = await PDFLib.PDFDocument.create();
-      const page = pdfDoc.addPage();
+      let page = pdfDoc.addPage();
       const { width, height } = page.getSize();
-  
-      // Add text to the page
-      page.drawText(textContent, {
-        x: 50,
-        y: height - 100,
-        size: 12,
-      });
-  
-      // Save the PDF document as bytes
+      const fontSize = 12;
+      const lineHeight = 14;
+      let y = height - 40;
+      const margin = 50;
+
+      const textLines = textContent.split(/\r?\n/);
+      for (const line of textLines) {
+        const words = line.split(' ');
+        let currentLine = '';
+
+        for (const word of words) {
+          const textWidth = pdfDoc.embedStandardFont(PDFLib.StandardFonts.Helvetica).widthOfTextAtSize(currentLine + word, fontSize);
+          if (textWidth < width - 2 * margin) {
+            currentLine += (currentLine ? ' ' : '') + word;
+          } else {
+            page.drawText(currentLine, { x: margin, y: y, size: fontSize });
+            y -= lineHeight;
+            currentLine = word;
+
+            if (y <= margin) {
+              page = pdfDoc.addPage();
+              y = height - 40;
+            }
+          }
+        }
+
+        page.drawText(currentLine, { x: margin, y: y, size: fontSize });
+        y -= lineHeight;
+
+        if (y <= margin) {
+          page = pdfDoc.addPage();
+          y = height - 40;
+        }
+      }
+
       const pdfBytes = await pdfDoc.save();
-  
-      // Convert Uint8Array to Blob
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-  
-      // Create a temporary anchor element to trigger download
-      const a = document.createElement('a');
       const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
       a.href = url;
       a.download = 'notepad_document.pdf';
-  
-      // Append anchor element to body and trigger click event
       document.body.appendChild(a);
       a.click();
-  
-      // Remove anchor element from body
       document.body.removeChild(a);
-  
-      // Revoke the URL object to release resources
       URL.revokeObjectURL(url);
     }
-  
+
     function clearEditor() {
       content.value = '';
       updateWordCount();
     }
-  
+
     function changeFontStyle() {
       const selectedFont = document.getElementById('fontStyle').value;
       content.style.fontFamily = selectedFont;
     }
-  
+
     function changeFontSize() {
       const selectedSize = document.getElementById('fontSize').value;
       content.style.fontSize = selectedSize + 'px';
     }
-  
+
     function toggleDarkMode() {
       darkMode = !darkMode;
       const notepad = document.getElementById('notepad');
@@ -207,16 +221,14 @@
         notepad.classList.remove('dark-mode');
       }
     }
-  
+
     function updateWordCount() {
       const text = content.value.trim();
       const words = text.split(/\s+/).filter(word => word.length > 0);
       wordCountElement.textContent = 'Word count: ' + words.length;
     }
-  
+
     content.addEventListener('input', updateWordCount);
   </script>
-  
 </body>
 </html>
-
